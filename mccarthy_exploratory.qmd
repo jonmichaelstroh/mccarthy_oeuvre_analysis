@@ -222,9 +222,8 @@ prettyhorses_sentiments <- prettyhorses_packaged |>
 
 -   to use to label plot points:
 
-```{=html}
 <!-- -->
-```
+
 -   annotate("label", x = 238.5, y = 5, label = "They discover the bunker filled with supplies", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") + annotate("segment", x = 238.5, xend = 238.5, y = 4.6, yend = 3.2, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") + annotate("label", x = 173, y = 3, label = "They find the cellar\nof imprisoned people", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") + annotate("segment", x = 177.5, xend = 177.5, y = 2, yend = 0.5, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") +
 
 ```{r}
@@ -315,6 +314,9 @@ prettyhorses_sentiments |>
 
 ```{r}
 # the orchard keeper 65
-
-
+library("usethis")
+git_sitrep()
+create_github_token()
+gitcreds::gitcreds_set()
+git_sitrep()
 ```
