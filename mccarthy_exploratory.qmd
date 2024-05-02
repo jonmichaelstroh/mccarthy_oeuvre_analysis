@@ -17,6 +17,7 @@ library(purrr)
 library(stringr)
 library(udpipe)
 library(epubr)
+library(zoo)
 # latest version of syuzhet package
 # devtools::install_github("mjockers/syuzhet")
 library(syuzhet)
@@ -156,12 +157,16 @@ theroad_sentiments %>%
     caption = "Bleak Novel LMAO"
   ) +
   theme(
-    plot.title = element_text(size = 14, face = "bold"),
-    plot.background = element_rect(fill = "white"),
+    plot.title = element_text(size = 14, face = "bold", color = "#2b2b2b"),
+    plot.caption = element_text(color = "#2b2b2b"),
+    axis.title.y = element_text(color = "#2b2b2b"),
+    axis.text.y = element_text(color = "#2b2b2b"), 
+    axis.text.x = element_blank(),
     axis.title.x = element_blank(),
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
-    axis.text.x = element_blank()
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
   )
 
 ```
@@ -191,6 +196,125 @@ sapply(chunked_list, function(chunk) cat(paste(chunk, collapse=" "), "\n\n"))
 ```{r}
 # download and process additional novels
 # might have to read in epubs
+
+alltheprettyhorses_pdf <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/Books/alltheprettyhorses.epub")[[10]][[1]] |>
+  select(text) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  substring(196)
+
+prettyhorses_wrapped <- strwrap(alltheprettyhorses_pdf, 700)
+
+prettyhorses_packaged <- tibble(prettyhorses_wrapped) |>
+  rename(text = prettyhorses_wrapped) |>
+  mutate(line = row_number())
+```
+
+```{r}
+# pretty horses sentiment
+prettyhorses_sentiments <- prettyhorses_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+```
+
+-   Must note: Cormac writes in Spanish (mostly dialogue) occasionally and I'm unsure how the sentiment analysis would pick that up. Could I translate the entire text to English?
+
+## Sentiment in 'All The Pretty Horses'
+
+-   to use to label plot points:
+
+```{=html}
+<!-- -->
+```
+-   annotate("label", x = 238.5, y = 5, label = "They discover the bunker filled with supplies", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") + annotate("segment", x = 238.5, xend = 238.5, y = 4.6, yend = 3.2, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") + annotate("label", x = 173, y = 3, label = "They find the cellar\nof imprisoned people", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") + annotate("segment", x = 177.5, xend = 177.5, y = 2, yend = 0.5, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") +
+
+```{r}
+prettyhorses_sentiments %>%
+  ggplot(aes(x = line, y = bing)) +
+  geom_bar(stat = "identity", aes(fill = bing >= 0), width = 1) + 
+  scale_fill_manual(values = c("FALSE" = "#36939b", "TRUE" = "goldenrod4")) +
+  theme_minimal() +
+  labs(
+    title = expression(paste("Sentiment in ", italic("All The Pretty Horses"), " by Cormac McCarthy")),
+    y = "Sentiment",
+    caption = "More of a wild ride. Eh, see what I did there"
+  ) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", color = "tan4"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.title.y = element_text(color = "tan4"),
+    axis.text.y = element_text(color = "tan4"),
+    plot.caption = element_text(color = "tan4"),
+    legend.position = "none"
+  )
+```
+
+## I want to try some smoother lines...let's see if anything looks good...
+
+```{r}
+# w geom_smooth()
+
+prettyhorses_sentiments %>%
+  ggplot(aes(x = line, y = bing)) +
+  geom_smooth(color = "#36939b", method = "loess", span = 0.2, se = FALSE) + 
+  theme_minimal() +
+  labs(
+    title = expression(paste("Sentiment in ", italic("All The Pretty Horses"), " by Cormac McCarthy")),
+    y = "Sentiment",
+    caption = "YAY for happy endings!"
+  ) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", color = "tan4"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.title.y = element_text(color = "tan4"),
+    axis.text.y = element_text(color = "tan4"),
+    plot.caption = element_text(color = "tan4"),
+    legend.position = "none"
+  )
+```
+
+```{r}
+# rolling average
+
+prettyhorses_sentiments |>
+  mutate(rolling_avg = rollmean(bing, k = 10, fill = NA, align = 'right')) |>
+  filter(!is.na(rolling_avg)) |>
+  ggplot(aes(x = line, y = rolling_avg)) +
+  geom_line(color = "#36939b", linewidth = 1) +
+  theme_minimal() +
+  labs(
+    title = expression(paste("Sentiment in ", italic("All The Pretty Horses"), " by Cormac McCarthy")),
+    y = "Sentiment",
+    caption = "More of a wild ride. Eh, see what I did there"
+  ) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", color = "tan4"),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.title.y = element_text(color = "tan4"),
+    axis.text.y = element_text(color = "tan4"),
+    plot.caption = element_text(color = "tan4"),
+    legend.position = "none"
+  )
+```
+
+## Load in all the rest of Cormac's Novels...
+
+```{r}
+# the orchard keeper 65
 
 
 ```
