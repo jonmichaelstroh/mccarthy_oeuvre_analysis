@@ -4,23 +4,193 @@ format: html
 editor: visual
 ---
 
-## Quarto
+# Cormac McCarthy EDA
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+------------------------------------------------------------------------
 
 ```{r}
-1 + 1
+# packages
+library(pdftools)
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(udpipe)
+library(epubr)
+# latest version of syuzhet package
+# devtools::install_github("mjockers/syuzhet")
+library(syuzhet)
 ```
 
-You can add options to executable code like this
+## How do I read in a pdf to R?
 
 ```{r}
-#| echo: false
-2 * 2
+theroad_url <- "/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/Books/theroad.pdf"
+
+theroad_pdf <- pdf_text(theroad_url)
+
+theroad_wrapped <- strwrap(theroad_pdf, width = 70)
+
+# remove title, dedication, and "The End"
+theroad_wrapped <- theroad_wrapped[5:4524]
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+## Explore UDPipe
+
+```{r}
+ud_model <- udpipe_download_model(language = "english")
+ud_model <- udpipe_load_model(ud_model$file_model)
+
+ud_pipe_model_road <- udpipe_annotate(ud_model, x = theroad_pdf, trace = FALSE)
+theroad_word_frequency <- data.frame(table(as.data.frame(ud_pipe_model_road)$upos))
+
+# clean the road word frequency table a tad
+theroad_word_frequency <- theroad_word_frequency |>
+  rename(word_type = Var1, word_frequency = Freq)
+
+abbreviations <- c(ADJ = "adjective", ADP = "adposition", ADV = "adverb",
+                   AUX = "auxiliary", CCONJ = "coordinating conjunction",
+                   DET = "determiner", INTJ = "interjection", NOUN = "noun",
+                   NUM = "numeral", PART = "particle", PRON = "pronoun",
+                   PROPN = "proper noun", PUNCT = "punctuation",
+                   SCONJ = "subordinating conjunction", SYM = "symbol",
+                   VERB = "verb", X = "other")
+
+theroad_word_frequency <- theroad_word_frequency |>
+  mutate(word_type = recode(word_type, !!!abbreviations))
+```
+
+## Quickly, Try to Count Words
+
+-   According to [wordcounters.com](https://wordcounters.com/word-count/literary-books/), "The Road" has 58,702 words
+
+-   When I put into a google doc and removed all the line breaks and numbers, I got 58,740 words
+
+```{r}
+theroad_word_frequency |>
+  filter(!word_type %in% c("punctuation", "numeral", "symbol")) |>
+  summarise(total_words = sum(word_frequency))
+```
+
+-   Interestingly, we have categorized over 1000 extra words, something to monitor
+
+-   Do certain words get double categorized?
+
+-   Or, since Cormac McCarthy uses uncommon or created compound words such as "bloodcults" or "bottomlands" are they being split and then counted twice?
+
+## Visualize Word Frequency in "The Road"
+
+```{r}
+ggplot(theroad_word_frequency, aes(x = reorder(word_type, -word_frequency), y = word_frequency)) +
+  geom_bar(stat = "identity", fill = "gray", color = "black") +  
+  labs(title = "Word Type And Frequency in 'The Road'",
+       x = NULL,
+       y = NULL,
+       caption = "Data from the novel by Cormac McCarthy") +
+  theme_minimal() +  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(size = 14, face = "bold"),
+        plot.caption = element_text(size = 8),
+        plot.background = element_rect(fill = "white"),
+        panel.grid.major = element_blank(),  
+        panel.grid.minor = element_blank()) 
+```
+
+## Sentiment Analysis for "The Road"
+
+-   Interested in using the Syuzhet package which reveals emotional shifts in the language of a story
+
+-   Inspiration for this thinking came from the late Kurt Vonnegut on the Shape of Stories (I watched in my Intro to Creative Writing, inspiring writers to this day)
+
+## How do I preprocess the data for Sentiment Analysis?
+
+-   Julia Silge in [an analysis](https://juliasilge.com/blog/if-i-loved-nlp-less/) of Jane Austen's novels packages the text into 10 lines of about \~ 70 characters each for analysis
+
+```{r}
+# package into 700 character chunks with no words split in half
+theroad_packaged <- tibble(text = theroad_wrapped) |>
+  mutate(index = row_number(),                 
+         line = ceiling(index / 10)) |>
+  group_by(line) %>%
+  summarize(text = str_c(text, collapse = " "))
+```
+
+Three sentiment lexicons:
+
+-   `afinn` from [Finn Årup Nielsen](http://www2.imm.dtu.dk/pubdb/views/publication_details.php?id=6010)
+
+-   `bing` from [Bing Liu and collaborators](https://www.cs.uic.edu/~liub/FBS/sentiment-analysis.html)
+
+-   `nrc` from [Saif Mohammad and Peter Turney](http://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm)
+
+```{r}
+# function to extract multiple sentiments from Lincoln Mullen
+get_multi_sentiment <- function(sentences) {
+  list(bing  = get_sentiment(sentences, method = "bing"),
+       afinn = get_sentiment(sentences, method = "afinn"),
+       nrc   = get_sentiment(sentences, method = "nrc"))
+}
+```
+
+```{r}
+# get sentiments
+theroad_sentiments <- theroad_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+```
+
+## Sentiment in 'The Road'
+
+```{r}
+theroad_sentiments %>%
+  ggplot(aes(x = line, y = bing)) +
+  geom_bar(stat = "identity") +
+  annotate("label", x = 238.5, y = 5, label = "They discover the bunker filled with supplies", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") +
+  annotate("segment", x = 238.5, xend = 238.5, y = 4.6, yend = 3.2, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") +
+  annotate("label", x = 173, y = 3, label = "They find the cellar\nof imprisoned people", hjust = 0.5, label.size = 0, size = 3, color = "#2b2b2b") +
+  annotate("segment", x = 177.5, xend = 177.5, y = 2, yend = 0.5, arrow = arrow(length = unit(0.02, "npc")), color = "#2b2b2b") +
+  theme_minimal() +
+  labs(
+    title = expression(paste("Sentiment in ", italic("The Road"), " by Cormac McCarthy")),
+    y = "Sentiment",
+    caption = "Bleak Novel LMAO"
+  ) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.background = element_rect(fill = "white"),
+    axis.title.x = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.text.x = element_blank()
+  )
+
+```
+
+### Is the small rise in the center when they find the bunker filled with food?
+
+-   Yes!
+
+```{r}
+# just to check which part of the novel for different sentiments
+# delete later
+combined_text <- theroad_sentiments |>
+  filter(line >= 170 & line <= 185) |>
+  summarise(full_text = str_c(text, collapse = " ")) |>
+  pull(full_text)
+
+text_chunks <- strsplit(combined_text, "\\s+")[[1]]
+chunked_list <- split(text_chunks, ceiling(seq_along(text_chunks)/100))
+
+# Print each chunk on a new line for readability
+sapply(chunked_list, function(chunk) cat(paste(chunk, collapse=" "), "\n\n"))
+
+```
+
+## Let's try some more McCarthy novels...and maybe a few Atwood novels for comparison
+
+```{r}
+# download and process additional novels
+# might have to read in epubs
+
+
+```
