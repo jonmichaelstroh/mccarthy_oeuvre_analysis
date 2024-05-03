@@ -1,0 +1,84 @@
+---
+title: "get_sentiment"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+# Get Sentiments
+
+```{r}
+# packages
+library(pdftools)
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(udpipe)
+library(epubr)
+library(zoo)
+# latest version of syuzhet package
+# devtools::install_github("mjockers/syuzhet")
+library(syuzhet)
+```
+
+```{r}
+# function to extract multiple sentiments from Lincoln Mullen
+get_multi_sentiment <- function(sentences) {
+  list(bing  = get_sentiment(sentences, method = "bing"),
+       afinn = get_sentiment(sentences, method = "afinn"),
+       nrc   = get_sentiment(sentences, method = "nrc"))
+}
+```
+
+```{r}
+# orchard keeper
+orchardkeeper_sentiments <- orchardkeeper_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# outer dark
+outerdark_sentiments <- outerdark_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# child of god
+childofgod_sentiments <- childofgod_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# suttree
+suttree_sentiments <- suttree_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# blood meridian
+bm_sentiments <- bm_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# all the pretty horses
+prettyhorses_sentiments <- prettyhorses_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# the crossing
+thecrossing_sentiments <- thecrossing_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# cities of the plain
+cop_sentiments <- cop_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# no country for old men
+ncfom_sentiments <- ncfom_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# the road
+theroad_sentiments <- theroad_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# passenger
+thepassenger_sentiments <- thepassenger_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+# stella maris
+stellamaris_sentiments <- stellamaris_packaged |>
+  mutate(sentiments = map(text, get_multi_sentiment)) |>
+  unnest_wider(c(sentiments))
+```

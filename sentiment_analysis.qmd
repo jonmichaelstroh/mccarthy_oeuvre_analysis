@@ -1,0 +1,26 @@
+---
+title: "sentiment_analysis"
+format: html
+editor: visual
+---
+
+## How did the sentiment of Cormac's novels change over time?
+
+```{r}
+# find summary statistics
+
+mccarthy_oeuvre <- list(`The Orchard Keeper` = orchardkeeper_sentiments, 
+`Outer Dark` = outerdark_sentiments, `Child Of God` = childofgod_sentiments,`Suttree` = suttree_sentiments, `Blood Meridian` = bm_sentiments, `All The Pretty Horses ` = prettyhorses_sentiments, `The Crossing` = thecrossing_sentiments, `Cities Of The Plain` = cop_sentiments, `No Country For Old Men` = ncfom_sentiments, `The Road` = theroad_sentiments, `The Passenger` = thepassenger_sentiments, `Stella Maris` = stellamaris_sentiments)
+
+mccarthy_meta <- data.frame(
+  title = c("The Orchard Keeper", "Outer Dark", "Child Of God", "Suttree", 
+               "Blood Meridian", "All The Pretty Horses", "The Crossing", 
+               "Cities of the Plain", "No Country For Old Men", "The Road", 
+               "The Passenger", "Stella Maris"),
+  year = c(1965, 1968, 1973, 1979, 1985, 1992, 1994, 1998, 2005, 2006, 2022, 2022)
+)
+
+mccarthy_combined <- mccarthy_meta[match(names(mccarthy_oeuvre), mccarthy_meta$title),]
+mccarthy_oeuvre <- map2(mccarthy_oeuvre, mccarthy_combined, ~ mutate(.x, title = .y$title, year = .y$year))
+
+```

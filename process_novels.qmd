@@ -4,23 +4,165 @@ format: html
 editor: visual
 ---
 
-## Quarto
+# Let's process the text from each novel efficiently
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+-   2 txt files
 
-## Running Code
+-   5 epubs
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+-   5 pdfs
 
-```{r}
-1 + 1
-```
-
-You can add options to executable code like this
+Overall, I simply need novels in 700 character packages of words (with no words split in half) and titles, etc removed
 
 ```{r}
-#| echo: false
-2 * 2
+# packages
+library(pdftools)
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(udpipe)
+library(epubr)
+library(zoo)
+# latest version of syuzhet package
+# devtools::install_github("mjockers/syuzhet")
+library(syuzhet)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+### txt files
+
+```{r}
+# the orchard keeper 65
+orchardkeeper <- readLines("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/theorchardkeeper.txt")[15:1535]
+
+orchardkeeper_combined <- paste(orchardkeeper, collapse = " ")
+
+orchardkeeper_packaged <- tibble(strwrap(orchardkeeper_combined, 700)) |>
+  rename(text = `strwrap(orchardkeeper_combined, 700)`) |>
+  mutate(line = row_number())
+```
+
+```{r}
+# outer dark 68
+outerdark <- paste(readLines("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/outerdark.txt")[4:2863], collapse = "")
+
+outerdark_packaged <- tibble(strwrap(outerdark, 700)) |>
+  rename(text = `strwrap(outerdark, 700)`) |>
+  mutate(line = row_number())
+```
+
+```{r}
+# the secret history 92 by donna tartt
+thesecrethistory <- readLines("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/Additional\ Novels/thesecrethistory.txt")[35:6899]
+
+thesecrethistory_combined <- paste(thesecrethistory, collapse = " ")
+
+secrethistory_packaged <- tibble(strwrap(thesecrethistory_combined, 700)) |>
+  rename(text = `strwrap(thesecrethistory_combined, 700)`) |>
+  mutate(line = row_number())
+```
+
+### epub files
+
+```{r}
+# child of god 73
+childofgod <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/childofgod.epub")[[9]][[1]] |>
+  select(text) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  substring(75) |>
+  str_replace_all("\n", " ")
+
+childofgod_wrapped <- strwrap(childofgod, 700)
+
+childofgod_packaged <- tibble(childofgod_wrapped) |>
+  rename(text = childofgod_wrapped) |>
+  mutate(line = row_number())
+
+childofgod_packaged
+```
+
+```{r}
+# all the pretty horses 92
+alltheprettyhorses_pdf <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/alltheprettyhorses.epub")[[10]][[1]] |>
+  select(text) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  substring(196) |>
+  str_replace_all("\n", " ")
+  
+prettyhorses_wrapped <- strwrap(alltheprettyhorses_pdf, 700)[1:491]
+
+prettyhorses_packaged <- tibble(prettyhorses_wrapped) |>
+  rename(text = prettyhorses_wrapped) |>
+  mutate(line = row_number())
+```
+
+```{r}
+# the crossing 94
+thecrossing_pdf <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/thecrossing.epub") [[7]][[1]] |>
+  select(text) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  substring(5) |>
+  str_replace_all("\n", " ")
+
+thecrossing_wrapped <- strwrap(thecrossing_pdf, 700)
+
+thecrossing_packaged <- tibble(thecrossing_wrapped) |>
+  rename(text = thecrossing_wrapped) |>
+  mutate(line = row_number())
+
+# to remove 'the end'
+thecrossing_packaged$text[1115] <- thecrossing_packaged$text[1115] |>
+  substr(1, nchar(thecrossing_packaged$text[1115]) - 11)
+```
+
+```{r}
+# no country for old men 05
+ncfom_pdf <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/nocountryforoldmen.epub") [[9]][[1]]  |>
+  select(text) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  str_replace_all("\n", " ") |>
+  substring(1315)
+  
+ncfom_wrapped <- strwrap(ncfom_pdf, 700)[1:506]
+
+ncfom_packaged <- tibble(ncfom_wrapped) |>
+  rename(text = ncfom_wrapped) |>
+  mutate(line = row_number())
+
+ncfom_packaged$text[506] <- ncfom_packaged$text[506] |>
+  substr(1, nchar(ncfom_packaged$text[506]) - 228)
+```
+
+```{r}
+# stella maris 22
+stellamaris_pdf <- epub("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/stellamaris.epub")[[10]][[1]]|>
+  select(text) |>
+  slice(7:n()) |>
+  summarise(full_text = paste(text, collapse = " ")) |>
+  str_replace_all("\n", " ") |>
+  str_replace_all("\t", " ")
+  
+stellamaris_wrapped <- strwrap(stellamaris_pdf, 700)[1:389]
+
+stellamaris_packaged <- tibble(stellamaris_wrapped) |>
+  rename(text = stellamaris_wrapped) |>
+  mutate(line = row_number())
+
+stellamaris_packaged$text[389] <- stellamaris_packaged$text[389] |>
+  substr(1, nchar(stellamaris_packaged$text[389]) - 73)
+```
+
+## pdf files
+
+```{r}
+# suttree 79
+suttree_pdf <- pdf_text("/Users/jonmichaelstroh/mccarthy_oeuvre_analysis/McCarthy\ Novels/suttree.pdf")[7:491] |>
+  paste(collapse = " ") |>
+  str_replace_all("\n", " ")
+
+suttree_wrapped <- strwrap(suttree_pdf, width = 700)
+
+suttree_packaged <- tibble(suttree_wrapped) |>
+  rename(text = suttree_wrapped) |>
+  mutate(line = row_number())
+```
